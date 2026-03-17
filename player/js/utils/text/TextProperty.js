@@ -11,11 +11,15 @@ function TextProperty(elem, data) {
   this.kf = false;
   this._isFirstFrame = true;
   this._mdf = false;
+  var textSid = data.d && data.d.sid ? data.d.sid : null;
   if (data.d && data.d.sid) {
     data.d = elem.globalData.slotManager.getProp(data.d);
   }
   this.data = data;
   this.elem = elem;
+  if (textSid) {
+    elem.globalData.slotManager.registerProp(textSid, 'text', this);
+  }
   this.comp = this.elem.comp;
   this.keysIndex = 0;
   this.canResize = false;
@@ -426,6 +430,20 @@ TextProperty.prototype.completeTextData = function (documentData) {
   documentData.yOffset = documentData.finalLineHeight || documentData.finalSize * 1.2;
   documentData.ls = documentData.ls || 0;
   documentData.ascent = (fontData.ascent * documentData.finalSize) / 100;
+};
+
+TextProperty.prototype._updateSlotData = function (newData) {
+  Object.assign(this.data.d, newData);
+  var i;
+  var len = this.data.d.k.length;
+  for (i = 0; i < len; i += 1) {
+    this.data.d.k[i].s.__complete = false;
+  }
+  this.keysIndex = 0;
+  this._isFirstFrame = true;
+  this.recalculate(this.keysIndex);
+  this.setCurrentData(this.data.d.k[this.keysIndex].s);
+  this.elem.addDynamicProperty(this);
 };
 
 TextProperty.prototype.updateDocumentData = function (newData, index) {

@@ -91,6 +91,7 @@ export type AnimationItem = {
     playSegments(segments: AnimationSegment | AnimationSegment[], forceFlag?: boolean): void;
     setSubframe(useSubFrames: boolean): void;
     getDuration(inFrames?: boolean): number;
+    setSlotValue(sid: string, slotObject: { p: Record<string, any> }): void;
     triggerEvent<T extends AnimationEventName>(name: T, args: AnimationEvents[T]): void;
     addEventListener<T extends AnimationEventName>(name: T, callback: AnimationEventCallback<AnimationEvents[T]>): () => void;
     removeEventListener<T extends AnimationEventName>(name: T, callback?: AnimationEventCallback<AnimationEvents[T]>): void;
@@ -190,6 +191,7 @@ export type LottiePlayer = {
     setLocationHref(href: string): void;
     setIDPrefix(prefix: string): void;
     updateDocumentData(path: (string|number)[], documentData: TextDocumentData, index: number): void;
+    setSlotValue(sid: string, slotObject: { p: Record<string, any> }, name?: string): void;
 };
 
 declare const Lottie: LottiePlayer;

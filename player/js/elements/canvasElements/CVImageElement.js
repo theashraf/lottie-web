@@ -13,8 +13,15 @@ import SVGShapeElement from '../svgElements/SVGShapeElement';
 
 function CVImageElement(data, globalData, comp) {
   this.assetData = globalData.getAssetData(data.refId);
+  var imageSid = this.assetData && this.assetData.sid ? this.assetData.sid : null;
+  if (imageSid) {
+    this.assetData = globalData.slotManager.getProp(this.assetData);
+  }
   this.img = globalData.imageLoader.getAsset(this.assetData);
   this.initElement(data, globalData, comp);
+  if (imageSid) {
+    globalData.slotManager.registerProp(imageSid, 'image', this);
+  }
 }
 extendPrototype([BaseElement, TransformElement, CVBaseElement, HierarchyElement, FrameElement, RenderableElement], CVImageElement);
 
@@ -49,6 +56,17 @@ CVImageElement.prototype.createContent = function () {
 
 CVImageElement.prototype.renderInnerContent = function () {
   this.canvasContext.drawImage(this.img, 0, 0);
+};
+
+CVImageElement.prototype._updateSlotAsset = function (newAssetData) {
+  Object.assign(this.assetData, newAssetData);
+  var self = this;
+  var img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.addEventListener('load', function () {
+    self.img = img;
+  });
+  img.src = this.globalData.getAssetsPath(this.assetData);
 };
 
 CVImageElement.prototype.destroy = function () {

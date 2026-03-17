@@ -115,6 +115,7 @@ lottie.setVolume = animationManager.setVolume;
 lottie.mute = animationManager.mute;
 lottie.unmute = animationManager.unmute;
 lottie.getRegisteredAnimations = animationManager.getRegisteredAnimations;
+lottie.setSlotValue = animationManager.setSlotValue;
 lottie.useWebWorker = setWebWorker;
 lottie.setIDPrefix = setPrefix;
 lottie.__getFactory = getFactory;

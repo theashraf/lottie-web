@@ -1955,6 +1955,7 @@
     if (name && this.name !== name || !this.renderer) {
       return;
     }
+    this.renderer.globalData.slotManager.destroy();
     this.renderer.destroy();
     this.imagePreloader.destroy();
     this.trigger('destroy');
@@ -2055,6 +2056,16 @@
       element.updateDocumentData(documentData, index);
     } catch (error) {
       // TODO: decide how to handle catch case
+    }
+  };
+  AnimationItem.prototype.setSlotValue = function (sid, slotObject, name) {
+    if (name && this.name !== name) {
+      return;
+    }
+    try {
+      this.renderer.globalData.slotManager.setSlotValue(sid, slotObject);
+    } catch (error) {
+      // silently fail if animation is destroyed or not yet loaded
     }
   };
   AnimationItem.prototype.trigger = function (name) {
@@ -2315,6 +2326,12 @@
         registeredAnimations[i].animation.unmute(animation);
       }
     }
+    function setSlotValue(sid, slotObject, animation) {
+      var i;
+      for (i = 0; i < len; i += 1) {
+        registeredAnimations[i].animation.setSlotValue(sid, slotObject, animation);
+      }
+    }
     moduleOb.registerAnimation = registerAnimation;
     moduleOb.loadAnimation = loadAnimation;
     moduleOb.setSpeed = setSpeed;
@@ -2333,6 +2350,7 @@
     moduleOb.setVolume = setVolume;
     moduleOb.mute = mute;
     moduleOb.unmute = unmute;
+    moduleOb.setSlotValue = setSlotValue;
     moduleOb.getRegisteredAnimations = getRegisteredAnimations;
     return moduleOb;
   }();
@@ -3208,9 +3226,52 @@
     };
     this.addEffect = addEffect;
   }
+  function _updateSlotData(newPropData) {
+    Object.assign(this.data, newPropData);
+    if (this.kf) {
+      this.keyframes = this.data.k;
+      this.keyframesMetadata = [];
+      this._caching = {
+        lastFrame: initFrame,
+        lastIndex: 0,
+        value: this._caching.value,
+        _lastKeyframeIndex: -1
+      };
+    } else {
+      if (this.propType === 'unidimensional') {
+        this.pv = this.data.k;
+        this.v = this.mult ? this.data.k * this.mult : this.data.k;
+      } else {
+        var i;
+        var len = this.data.k.length;
+        for (i = 0; i < len; i += 1) {
+          this.pv[i] = this.data.k[i];
+          this.v[i] = this.data.k[i] * this.mult;
+        }
+      }
+    }
+    this._mdf = true;
+    this._isFirstFrame = true;
+    this.frameId = -1;
+    if (this._cachingAtTime) {
+      this._cachingAtTime.lastFrame = initFrame;
+      this._cachingAtTime.lastIndex = 0;
+    }
+    if (!this.effectsSequence.length) {
+      this.effectsSequence.push(function (val) {
+        return val;
+      });
+      this.container.addDynamicProperty(this);
+    }
+  }
+  ValueProperty.prototype._updateSlotData = _updateSlotData;
+  MultiDimensionalProperty.prototype._updateSlotData = _updateSlotData;
+  KeyframedValueProperty.prototype._updateSlotData = _updateSlotData;
+  KeyframedMultidimensionalProperty.prototype._updateSlotData = _updateSlotData;
   var PropertyFactory = function () {
     function getProp(elem, data, type, mult, container) {
-      if (data.sid) {
+      var sid = data.sid;
+      if (sid) {
         data = elem.globalData.slotManager.getProp(data);
       }
       var p;
@@ -3229,6 +3290,10 @@
           default:
             break;
         }
+      }
+      if (sid && p) {
+        p._sid = sid;
+        elem.globalData.slotManager.registerProp(sid, 'property', p);
       }
       if (p.effectsSequence.length) {
         container.addDynamicProperty(p);
@@ -4433,10 +4498,11 @@
   lottie.mute = animationManager.mute;
   lottie.unmute = animationManager.unmute;
   lottie.getRegisteredAnimations = animationManager.getRegisteredAnimations;
+  lottie.setSlotValue = animationManager.setSlotValue;
   lottie.useWebWorker = setWebWorker;
   lottie.setIDPrefix = setPrefix;
   lottie.__getFactory = getFactory;
-  lottie.version = '5.13.0';
+  lottie.version = '5.14.0-alpha.1';
   function checkReady() {
     if (document.readyState === 'complete') {
       clearInterval(readyStateCheckInterval);
@@ -6478,12 +6544,44 @@
 
   function SlotManager(animationData) {
     this.animationData = animationData;
+    this._registry = {};
   }
   SlotManager.prototype.getProp = function (data) {
     if (this.animationData.slots && this.animationData.slots[data.sid]) {
       return Object.assign(data, this.animationData.slots[data.sid].p);
     }
     return data;
+  };
+  SlotManager.prototype.registerProp = function (sid, type, target) {
+    if (!this._registry[sid]) {
+      this._registry[sid] = [];
+    }
+    this._registry[sid].push({
+      type: type,
+      target: target
+    });
+  };
+  SlotManager.prototype.setSlotValue = function (sid, slotObject) {
+    if (this.animationData.slots) {
+      this.animationData.slots[sid] = slotObject;
+    }
+    var entries = this._registry[sid];
+    if (!entries) {
+      return;
+    }
+    var newData = slotObject.p;
+    var i;
+    var len = entries.length;
+    for (i = 0; i < len; i += 1) {
+      if (entries[i].type === 'image') {
+        entries[i].target._updateSlotAsset(newData);
+      } else {
+        entries[i].target._updateSlotData(newData);
+      }
+    }
+  };
+  SlotManager.prototype.destroy = function () {
+    this._registry = {};
   };
   function slotFactory(animationData) {
     return new SlotManager(animationData);
@@ -7815,6 +7913,7 @@
 
   function IImageElement(data, globalData, comp) {
     this.assetData = globalData.getAssetData(data.refId);
+    var imageSid = this.assetData && this.assetData.sid ? this.assetData.sid : null;
     if (this.assetData && this.assetData.sid) {
       this.assetData = globalData.slotManager.getProp(this.assetData);
     }
@@ -7825,6 +7924,9 @@
       width: this.assetData.w,
       height: this.assetData.h
     };
+    if (imageSid) {
+      globalData.slotManager.registerProp(imageSid, 'image', this);
+    }
   }
   extendPrototype([BaseElement, TransformElement, SVGBaseElement, HierarchyElement, FrameElement, RenderableDOMElement], IImageElement);
   IImageElement.prototype.createContent = function () {
@@ -7835,6 +7937,16 @@
     this.innerElem.setAttribute('preserveAspectRatio', this.assetData.pr || this.globalData.renderConfig.imagePreserveAspectRatio);
     this.innerElem.setAttributeNS('http://www.w3.org/1999/xlink', 'href', assetPath);
     this.layerElement.appendChild(this.innerElem);
+  };
+  IImageElement.prototype._updateSlotAsset = function (newAssetData) {
+    Object.assign(this.assetData, newAssetData);
+    this.sourceRect.width = this.assetData.w;
+    this.sourceRect.height = this.assetData.h;
+    if (this.innerElem) {
+      this.innerElem.setAttribute('width', this.assetData.w + 'px');
+      this.innerElem.setAttribute('height', this.assetData.h + 'px');
+      this.innerElem.setAttributeNS('http://www.w3.org/1999/xlink', 'href', this.globalData.getAssetsPath(this.assetData));
+    }
   };
   IImageElement.prototype.sourceRectAtTime = function () {
     return this.sourceRect;
@@ -8849,11 +8961,15 @@
     this.kf = false;
     this._isFirstFrame = true;
     this._mdf = false;
+    var textSid = data.d && data.d.sid ? data.d.sid : null;
     if (data.d && data.d.sid) {
       data.d = elem.globalData.slotManager.getProp(data.d);
     }
     this.data = data;
     this.elem = elem;
+    if (textSid) {
+      elem.globalData.slotManager.registerProp(textSid, 'text', this);
+    }
     this.comp = this.elem.comp;
     this.keysIndex = 0;
     this.canResize = false;
@@ -9266,6 +9382,19 @@
     documentData.yOffset = documentData.finalLineHeight || documentData.finalSize * 1.2;
     documentData.ls = documentData.ls || 0;
     documentData.ascent = fontData.ascent * documentData.finalSize / 100;
+  };
+  TextProperty.prototype._updateSlotData = function (newData) {
+    Object.assign(this.data.d, newData);
+    var i;
+    var len = this.data.d.k.length;
+    for (i = 0; i < len; i += 1) {
+      this.data.d.k[i].s.__complete = false;
+    }
+    this.keysIndex = 0;
+    this._isFirstFrame = true;
+    this.recalculate(this.keysIndex);
+    this.setCurrentData(this.data.d.k[this.keysIndex].s);
+    this.elem.addDynamicProperty(this);
   };
   TextProperty.prototype.updateDocumentData = function (newData, index) {
     index = index === undefined ? this.keysIndex : index;
@@ -11961,8 +12090,15 @@
 
   function CVImageElement(data, globalData, comp) {
     this.assetData = globalData.getAssetData(data.refId);
+    var imageSid = this.assetData && this.assetData.sid ? this.assetData.sid : null;
+    if (imageSid) {
+      this.assetData = globalData.slotManager.getProp(this.assetData);
+    }
     this.img = globalData.imageLoader.getAsset(this.assetData);
     this.initElement(data, globalData, comp);
+    if (imageSid) {
+      globalData.slotManager.registerProp(imageSid, 'image', this);
+    }
   }
   extendPrototype([BaseElement, TransformElement, CVBaseElement, HierarchyElement, FrameElement, RenderableElement], CVImageElement);
   CVImageElement.prototype.initElement = SVGShapeElement.prototype.initElement;
@@ -11993,6 +12129,16 @@
   };
   CVImageElement.prototype.renderInnerContent = function () {
     this.canvasContext.drawImage(this.img, 0, 0);
+  };
+  CVImageElement.prototype._updateSlotAsset = function (newAssetData) {
+    Object.assign(this.assetData, newAssetData);
+    var self = this;
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.addEventListener('load', function () {
+      self.img = img;
+    });
+    img.src = this.globalData.getAssetsPath(this.assetData);
   };
   CVImageElement.prototype.destroy = function () {
     this.img = null;

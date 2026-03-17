@@ -452,9 +452,49 @@ function KeyframedMultidimensionalProperty(elem, data, mult, container) {
   this.addEffect = addEffect;
 }
 
+function _updateSlotData(newPropData) {
+  Object.assign(this.data, newPropData);
+  if (this.kf) {
+    this.keyframes = this.data.k;
+    this.keyframesMetadata = [];
+    this._caching = {
+      lastFrame: initFrame, lastIndex: 0, value: this._caching.value, _lastKeyframeIndex: -1,
+    };
+  } else {
+    if (this.propType === 'unidimensional') {
+      this.pv = this.data.k;
+      this.v = this.mult ? this.data.k * this.mult : this.data.k;
+    } else {
+      var i;
+      var len = this.data.k.length;
+      for (i = 0; i < len; i += 1) {
+        this.pv[i] = this.data.k[i];
+        this.v[i] = this.data.k[i] * this.mult;
+      }
+    }
+  }
+  this._mdf = true;
+  this._isFirstFrame = true;
+  this.frameId = -1;
+  if (this._cachingAtTime) {
+    this._cachingAtTime.lastFrame = initFrame;
+    this._cachingAtTime.lastIndex = 0;
+  }
+  if (!this.effectsSequence.length) {
+    this.effectsSequence.push(function (val) { return val; });
+    this.container.addDynamicProperty(this);
+  }
+}
+
+ValueProperty.prototype._updateSlotData = _updateSlotData;
+MultiDimensionalProperty.prototype._updateSlotData = _updateSlotData;
+KeyframedValueProperty.prototype._updateSlotData = _updateSlotData;
+KeyframedMultidimensionalProperty.prototype._updateSlotData = _updateSlotData;
+
 const PropertyFactory = (function () {
   function getProp(elem, data, type, mult, container) {
-    if (data.sid) {
+    var sid = data.sid;
+    if (sid) {
       data = elem.globalData.slotManager.getProp(data);
     }
     var p;
@@ -473,6 +513,10 @@ const PropertyFactory = (function () {
         default:
           break;
       }
+    }
+    if (sid && p) {
+      p._sid = sid;
+      elem.globalData.slotManager.registerProp(sid, 'property', p);
     }
     if (p.effectsSequence.length) {
       container.addDynamicProperty(p);

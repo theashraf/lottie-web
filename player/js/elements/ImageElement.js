@@ -12,6 +12,7 @@ import RenderableDOMElement from './helpers/RenderableDOMElement';
 
 function IImageElement(data, globalData, comp) {
   this.assetData = globalData.getAssetData(data.refId);
+  var imageSid = this.assetData && this.assetData.sid ? this.assetData.sid : null;
   if (this.assetData && this.assetData.sid) {
     this.assetData = globalData.slotManager.getProp(this.assetData);
   }
@@ -19,6 +20,9 @@ function IImageElement(data, globalData, comp) {
   this.sourceRect = {
     top: 0, left: 0, width: this.assetData.w, height: this.assetData.h,
   };
+  if (imageSid) {
+    globalData.slotManager.registerProp(imageSid, 'image', this);
+  }
 }
 
 extendPrototype([BaseElement, TransformElement, SVGBaseElement, HierarchyElement, FrameElement, RenderableDOMElement], IImageElement);
@@ -33,6 +37,17 @@ IImageElement.prototype.createContent = function () {
   this.innerElem.setAttributeNS('http://www.w3.org/1999/xlink', 'href', assetPath);
 
   this.layerElement.appendChild(this.innerElem);
+};
+
+IImageElement.prototype._updateSlotAsset = function (newAssetData) {
+  Object.assign(this.assetData, newAssetData);
+  this.sourceRect.width = this.assetData.w;
+  this.sourceRect.height = this.assetData.h;
+  if (this.innerElem) {
+    this.innerElem.setAttribute('width', this.assetData.w + 'px');
+    this.innerElem.setAttribute('height', this.assetData.h + 'px');
+    this.innerElem.setAttributeNS('http://www.w3.org/1999/xlink', 'href', this.globalData.getAssetsPath(this.assetData));
+  }
 };
 
 IImageElement.prototype.sourceRectAtTime = function () {

@@ -223,6 +223,13 @@ const animationManager = (function () {
     }
   }
 
+  function setSlotValue(sid, slotObject, animation) {
+    var i;
+    for (i = 0; i < len; i += 1) {
+      registeredAnimations[i].animation.setSlotValue(sid, slotObject, animation);
+    }
+  }
+
   moduleOb.registerAnimation = registerAnimation;
   moduleOb.loadAnimation = loadAnimation;
   moduleOb.setSpeed = setSpeed;
@@ -241,6 +248,7 @@ const animationManager = (function () {
   moduleOb.setVolume = setVolume;
   moduleOb.mute = mute;
   moduleOb.unmute = unmute;
+  moduleOb.setSlotValue = setSlotValue;
   moduleOb.getRegisteredAnimations = getRegisteredAnimations;
   return moduleOb;
 }());

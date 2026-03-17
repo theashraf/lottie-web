@@ -624,6 +624,7 @@ AnimationItem.prototype.destroy = function (name) {
   if ((name && this.name !== name) || !this.renderer) {
     return;
   }
+  this.renderer.globalData.slotManager.destroy();
   this.renderer.destroy();
   this.imagePreloader.destroy();
   this.trigger('destroy');
@@ -740,6 +741,17 @@ AnimationItem.prototype.updateDocumentData = function (path, documentData, index
     element.updateDocumentData(documentData, index);
   } catch (error) {
     // TODO: decide how to handle catch case
+  }
+};
+
+AnimationItem.prototype.setSlotValue = function (sid, slotObject, name) {
+  if (name && this.name !== name) {
+    return;
+  }
+  try {
+    this.renderer.globalData.slotManager.setSlotValue(sid, slotObject);
+  } catch (error) {
+    // silently fail if animation is destroyed or not yet loaded
   }
 };
 
