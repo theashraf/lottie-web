@@ -755,6 +755,19 @@ AnimationItem.prototype.setSlotValue = function (sid, slotObject, name) {
   }
 };
 
+AnimationItem.prototype.getExpressionGlobal = function () {
+  if (this.expressionsPlugin) {
+    return this.expressionsPlugin.getGlobal();
+  }
+  return null;
+};
+
+AnimationItem.prototype.resetExpressionGlobal = function () {
+  if (this.expressionsPlugin) {
+    this.expressionsPlugin.resetGlobal();
+  }
+};
+
 AnimationItem.prototype.trigger = function (name) {
   if (this._cbs && this._cbs[name]) {
     switch (name) {

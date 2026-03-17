@@ -23,10 +23,16 @@ const ExpressionManager = (function () {
   var fetch = null;
   var frames = null;
   var _lottieGlobal = {};
+  var _expressionGlobal = {};
+  var $ = { // eslint-disable-line no-shadow-restricted-names
+    global: _expressionGlobal,
+    engineName: 'JavaScript',
+  };
   seedrandom(BMMath);
 
   function resetFrame() {
     _lottieGlobal = {};
+    // Note: $.global is intentionally NOT reset — it persists across frames
   }
 
   function $bm_isInstanceOfArray(arr) {
@@ -743,8 +749,19 @@ const ExpressionManager = (function () {
     return executeExpression;
   }
 
+  function getGlobal() {
+    return $.global;
+  }
+
+  function resetGlobal() {
+    _expressionGlobal = {};
+    $.global = _expressionGlobal;
+  }
+
   ob.initiateExpression = initiateExpression;
-  ob.__preventDeadCodeRemoval = [window, document, XMLHttpRequest, fetch, frames, $bm_neg, add, $bm_sum, $bm_sub, $bm_mul, $bm_div, $bm_mod, clamp, radians_to_degrees, degreesToRadians, degrees_to_radians, normalize, rgbToHsl, hslToRgb, linear, random, createPath, _lottieGlobal];
+  ob.getGlobal = getGlobal;
+  ob.resetGlobal = resetGlobal;
+  ob.__preventDeadCodeRemoval = [window, document, XMLHttpRequest, fetch, frames, $bm_neg, add, $bm_sum, $bm_sub, $bm_mul, $bm_div, $bm_mod, clamp, radians_to_degrees, degreesToRadians, degrees_to_radians, normalize, rgbToHsl, hslToRgb, linear, random, createPath, _lottieGlobal, $];
   ob.resetFrame = resetFrame;
   return ob;
 }());

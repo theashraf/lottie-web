@@ -5,6 +5,8 @@ const Expressions = (function () {
   var ob = {};
   ob.initExpressions = initExpressions;
   ob.resetFrame = ExpressionManager.resetFrame;
+  ob.getGlobal = ExpressionManager.getGlobal;
+  ob.resetGlobal = ExpressionManager.resetGlobal;
 
   function initExpressions(animation) {
     var stackCount = 0;

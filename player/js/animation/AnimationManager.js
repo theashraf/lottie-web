@@ -230,6 +230,29 @@ const animationManager = (function () {
     }
   }
 
+  function getExpressionGlobal() {
+    var i;
+    for (i = 0; i < len; i += 1) {
+      if (registeredAnimations[i].animation) {
+        var globals = registeredAnimations[i].animation.getExpressionGlobal();
+        if (globals !== null) {
+          return globals;
+        }
+      }
+    }
+    return null;
+  }
+
+  function resetExpressionGlobal() {
+    var i;
+    for (i = 0; i < len; i += 1) {
+      if (registeredAnimations[i].animation) {
+        registeredAnimations[i].animation.resetExpressionGlobal();
+        return;
+      }
+    }
+  }
+
   moduleOb.registerAnimation = registerAnimation;
   moduleOb.loadAnimation = loadAnimation;
   moduleOb.setSpeed = setSpeed;
@@ -249,6 +272,8 @@ const animationManager = (function () {
   moduleOb.mute = mute;
   moduleOb.unmute = unmute;
   moduleOb.setSlotValue = setSlotValue;
+  moduleOb.getExpressionGlobal = getExpressionGlobal;
+  moduleOb.resetExpressionGlobal = resetExpressionGlobal;
   moduleOb.getRegisteredAnimations = getRegisteredAnimations;
   return moduleOb;
 }());

@@ -2068,6 +2068,17 @@
       // silently fail if animation is destroyed or not yet loaded
     }
   };
+  AnimationItem.prototype.getExpressionGlobal = function () {
+    if (this.expressionsPlugin) {
+      return this.expressionsPlugin.getGlobal();
+    }
+    return null;
+  };
+  AnimationItem.prototype.resetExpressionGlobal = function () {
+    if (this.expressionsPlugin) {
+      this.expressionsPlugin.resetGlobal();
+    }
+  };
   AnimationItem.prototype.trigger = function (name) {
     if (this._cbs && this._cbs[name]) {
       switch (name) {
@@ -2332,6 +2343,27 @@
         registeredAnimations[i].animation.setSlotValue(sid, slotObject, animation);
       }
     }
+    function getExpressionGlobal() {
+      var i;
+      for (i = 0; i < len; i += 1) {
+        if (registeredAnimations[i].animation) {
+          var globals = registeredAnimations[i].animation.getExpressionGlobal();
+          if (globals !== null) {
+            return globals;
+          }
+        }
+      }
+      return null;
+    }
+    function resetExpressionGlobal() {
+      var i;
+      for (i = 0; i < len; i += 1) {
+        if (registeredAnimations[i].animation) {
+          registeredAnimations[i].animation.resetExpressionGlobal();
+          return;
+        }
+      }
+    }
     moduleOb.registerAnimation = registerAnimation;
     moduleOb.loadAnimation = loadAnimation;
     moduleOb.setSpeed = setSpeed;
@@ -2351,6 +2383,8 @@
     moduleOb.mute = mute;
     moduleOb.unmute = unmute;
     moduleOb.setSlotValue = setSlotValue;
+    moduleOb.getExpressionGlobal = getExpressionGlobal;
+    moduleOb.resetExpressionGlobal = resetExpressionGlobal;
     moduleOb.getRegisteredAnimations = getRegisteredAnimations;
     return moduleOb;
   }();
@@ -4499,6 +4533,8 @@
   lottie.unmute = animationManager.unmute;
   lottie.getRegisteredAnimations = animationManager.getRegisteredAnimations;
   lottie.setSlotValue = animationManager.setSlotValue;
+  lottie.getExpressionGlobal = animationManager.getExpressionGlobal;
+  lottie.resetExpressionGlobal = animationManager.resetExpressionGlobal;
   lottie.useWebWorker = setWebWorker;
   lottie.setIDPrefix = setPrefix;
   lottie.__getFactory = getFactory;
@@ -12479,9 +12515,16 @@
     var fetch = null;
     var frames = null;
     var _lottieGlobal = {};
+    var _expressionGlobal = {};
+    var $ = {
+      // eslint-disable-line no-shadow-restricted-names
+      global: _expressionGlobal,
+      engineName: 'JavaScript'
+    };
     initialize$2(BMMath);
     function resetFrame() {
       _lottieGlobal = {};
+      // Note: $.global is intentionally NOT reset — it persists across frames
     }
     function $bm_isInstanceOfArray(arr) {
       return arr.constructor === Array || arr.constructor === Float32Array;
@@ -13149,8 +13192,17 @@
       executeExpression.__preventDeadCodeRemoval = [$bm_transform, anchorPoint, time, velocity, inPoint, outPoint, width, height, name, loop_in, loop_out, smooth, toComp, fromCompToSurface, toWorld, fromWorld, mask, position, rotation, scale, thisComp, numKeys, active, wiggle, loopInDuration, loopOutDuration, comp, lookAt, easeOut, easeIn, ease, nearestKey, key, text, textIndex, textTotal, selectorValue, framesToTime, timeToFrames, sourceRectAtTime, substring, substr, posterizeTime, index, globalData];
       return executeExpression;
     }
+    function getGlobal() {
+      return $.global;
+    }
+    function resetGlobal() {
+      _expressionGlobal = {};
+      $.global = _expressionGlobal;
+    }
     ob.initiateExpression = initiateExpression;
-    ob.__preventDeadCodeRemoval = [window, document, XMLHttpRequest, fetch, frames, $bm_neg, add, $bm_sum, $bm_sub, $bm_mul, $bm_div, $bm_mod, clamp, radians_to_degrees, degreesToRadians, degrees_to_radians, normalize, rgbToHsl, hslToRgb, linear, random, createPath, _lottieGlobal];
+    ob.getGlobal = getGlobal;
+    ob.resetGlobal = resetGlobal;
+    ob.__preventDeadCodeRemoval = [window, document, XMLHttpRequest, fetch, frames, $bm_neg, add, $bm_sum, $bm_sub, $bm_mul, $bm_div, $bm_mod, clamp, radians_to_degrees, degreesToRadians, degrees_to_radians, normalize, rgbToHsl, hslToRgb, linear, random, createPath, _lottieGlobal, $];
     ob.resetFrame = resetFrame;
     return ob;
   }();
@@ -13159,6 +13211,8 @@
     var ob = {};
     ob.initExpressions = initExpressions;
     ob.resetFrame = ExpressionManager.resetFrame;
+    ob.getGlobal = ExpressionManager.getGlobal;
+    ob.resetGlobal = ExpressionManager.resetGlobal;
     function initExpressions(animation) {
       var stackCount = 0;
       var registers = [];
